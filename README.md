@@ -34,5 +34,5 @@ It includes **synthetic data generation**, a **retrieval-augmented generation (R
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/your-username/grocer-ai-assistant.git
+git clone https://github.com/your-username/Grocer-AI-Assistant.git
 cd grocer-ai-assistant
