@@ -2,39 +2,65 @@ import pandas as pd
 from faker import Faker
 import random
 from datetime import datetime, timedelta
+import os
 
-# Initialize Faker with a consistent seed to ensure reproducibility
+# Initialize Faker
 Faker.seed(0)
 fake = Faker()
 
 # --- Configuration ---
-NUM_RECORDS = 50000
-NUM_BRANCHES = 10
-NUM_EMPLOYEES_PER_BRANCH = 5
+DAILY_NEW_TRANSACTIONS = 200
 NUM_PRODUCTS = 100
-START_DATE = datetime(2024, 1, 1)
-END_DATE = datetime(2025, 1, 1)
+POLICY_UPDATE_PROB = 0.2   # 20% chance policies get updated
+EMPLOYEE_JOIN_PROB = 0.3   # 30% chance new employee joins
+EMPLOYEE_LEAVE_PROB = 0.1  # 10% chance someone leaves
+DATA_FILE = "grocer_ai_data.csv"
+POLICY_FILE = "grocer_ai_policies.txt"
 
-# --- Generate Core Data ---
-# Branches
-branches = [f"BCH-{i:03d}" for i in range(1, NUM_BRANCHES + 1)]
-branch_locations = [fake.city() for _ in range(NUM_BRANCHES)]
+# Feedback pool
+feedback_pool = {
+    "positive": [
+        "Great service, very satisfied!",
+        "Excellent product quality.",
+        "Friendly staff and quick checkout."
+    ],
+    "neutral": [
+        "Average experience.",
+        "Nothing special, just okay.",
+        "Service was fine, nothing to complain."
+    ],
+    "negative": [
+        "Poor service, not happy.",
+        "Had to wait too long.",
+        "Product was not fresh, disappointed."
+    ]
+}
 
-# Employees
+# Employees list (load if exists, else start new)
 employees = []
-for branch_id in branches:
-    for i in range(NUM_EMPLOYEES_PER_BRANCH):
-        employee_id = f"EMP-{branch_id.split('-')[-1]}-{i:03d}"
-        employees.append({
-            'employee_id': employee_id,
-            'employee_name': fake.name(),
-            'branch_id': branch_id,
-            'role': random.choice(['Cashier', 'Store Manager', 'Inventory Specialist', 'Merchandiser']),
-            'date_of_joining': fake.date_between(start_date=START_DATE, end_date=END_DATE).strftime('%Y-%m-%d'),
-            'leave_days_taken': random.randint(0, 15),
-            'sales_performance_score': random.randint(60, 100)
-        })
-employees_df = pd.DataFrame(employees)
+if os.path.exists(DATA_FILE):
+    try:
+        existing_df = pd.read_csv(DATA_FILE)
+        employees = existing_df[["employee_id", "employee_name", "branch_id", "role", "date_of_joining"]].drop_duplicates().to_dict("records")
+    except Exception:
+        existing_df = pd.DataFrame()
+else:
+    existing_df = pd.DataFrame()
+
+branches = [f"BCH-{i:03d}" for i in range(1, 11)]
+
+# Ensure employees exist
+if not employees:
+    for branch_id in branches:
+        for i in range(5):
+            employee_id = f"EMP-{branch_id.split('-')[-1]}-{i:03d}"
+            employees.append({
+                'employee_id': employee_id,
+                'employee_name': fake.name(),
+                'branch_id': branch_id,
+                'role': random.choice(['Cashier', 'Store Manager', 'Inventory Specialist', 'Merchandiser']),
+                'date_of_joining': datetime.now().strftime('%Y-%m-%d')
+            })
 
 # Products
 products = []
@@ -47,41 +73,76 @@ for i in range(NUM_PRODUCTS):
     })
 products_df = pd.DataFrame(products)
 
-# Transactions
+# --- Simulate employee join/leave ---
+if random.random() < EMPLOYEE_JOIN_PROB:
+    new_emp = {
+        'employee_id': f"EMP-{random.randint(100,999)}-{random.randint(10,99)}",
+        'employee_name': fake.name(),
+        'branch_id': random.choice(branches),
+        'role': random.choice(['Cashier', 'Store Manager', 'Inventory Specialist', 'Merchandiser']),
+        'date_of_joining': datetime.now().strftime('%Y-%m-%d')
+    }
+    employees.append(new_emp)
+    print(f"New employee joined: {new_emp['employee_name']} ({new_emp['employee_id']})")
+
+if employees and random.random() < EMPLOYEE_LEAVE_PROB:
+    leaving_emp = random.choice(employees)
+    employees.remove(leaving_emp)
+    print(f"Employee left: {leaving_emp['employee_name']} ({leaving_emp['employee_id']})")
+
+# --- Generate new transactions ---
 transactions = []
-for i in range(NUM_RECORDS):
+today = datetime.now().strftime('%Y-%m-%d')
+
+for i in range(DAILY_NEW_TRANSACTIONS):
     branch_id = random.choice(branches)
-    # choose an employee from that branch
-    employee_id = random.choice([e['employee_id'] for e in employees if e['branch_id'] == branch_id])
-    num_items = random.randint(1, 5)
+    employee = random.choice([e for e in employees if e['branch_id'] == branch_id])
+    product = products_df.sample(1).iloc[0]
+    quantity = random.randint(1, 3)
+    item_total = round(product['unit_price'] * quantity, 2)
 
-    selected_products = products_df.sample(n=num_items, replace=True)
-    for _, item in selected_products.iterrows():
-        quantity = random.randint(1, 3)
-        item_total = round(item['unit_price'] * quantity, 2)
-        transactions.append({
-            'transaction_id': f"TRN-{i:06d}",
-            'date_time': (START_DATE + timedelta(days=random.randint(0, 364), seconds=random.randint(0, 86399))).strftime('%Y-%m-%d %H:%M:%S'),
-            'customer_id': f"CUST-{random.randint(1, 10000)}",
-            'branch_id': branch_id,
-            'employee_id': employee_id,
-            'product_sku': item['product_sku'],
-            'product_name': item['product_name'],
-            'product_category': item['product_category'],
-            'unit_price': item['unit_price'],
-            'quantity': quantity,
-            'total_amount': item_total,
-            'customer_feedback': fake.text(max_nb_chars=100) if random.random() < 0.1 else "",
-            'referral_source': random.choice(['Social Media', 'Newspaper', 'Word-of-Mouth', 'Online Ad'])
-        })
+    # Weighted feedback: 60% pos, 30% neutral, 10% neg
+    feedback_type = random.choices(["positive", "neutral", "negative"], [0.6, 0.3, 0.1])[0]
+    feedback = random.choice(feedback_pool[feedback_type])
 
-transactions_df = pd.DataFrame(transactions)
+    transactions.append({
+        'transaction_id': f"TRN-{int(datetime.now().timestamp())}-{i}",
+        'date_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'customer_id': f"CUST-{random.randint(1, 20000)}",
+        'branch_id': branch_id,
+        'employee_id': employee['employee_id'],
+        'product_sku': product['product_sku'],
+        'product_name': product['product_name'],
+        'product_category': product['product_category'],
+        'unit_price': product['unit_price'],
+        'quantity': quantity,
+        'total_amount': item_total,
+        'customer_feedback': feedback,
+        'referral_source': random.choice(['Social Media', 'Newspaper', 'Word-of-Mouth', 'Online Ad'])
+    })
 
-# Join and save
-final_df = transactions_df.merge(employees_df, on=['employee_id', 'branch_id'], how='left')
-final_df.to_csv("grocer_ai_data.csv", index=False)
+new_df = pd.DataFrame(transactions)
 
-print("grocer_ai_data.csv has been successfully generated.")
-print(f"Total rows created: {len(final_df)}")
-print("\nSample Data:")
-print(final_df.head())
+# Merge with employees info
+employees_df = pd.DataFrame(employees)
+final_df = new_df.merge(employees_df, on=['employee_id', 'branch_id'], how='left')
+
+# Append to existing
+if not existing_df.empty:
+    final_df = pd.concat([existing_df, final_df], ignore_index=True)
+
+# Keep only last 365 days
+final_df['date_time'] = pd.to_datetime(final_df['date_time'])
+cutoff = datetime.now() - timedelta(days=365)
+final_df = final_df[final_df['date_time'] >= cutoff]
+
+# Save back
+final_df.to_csv(DATA_FILE, index=False)
+print(f"Updated {DATA_FILE} with {len(new_df)} new rows. Total rows now: {len(final_df)}")
+
+# --- Update policy file occasionally ---
+if random.random() < POLICY_UPDATE_PROB:
+    with open(POLICY_FILE, "a") as f:
+        f.write(f"\n[Update {datetime.now().strftime('%Y-%m-%d')}] Refund policy adjusted.\n")
+    print("Policy file updated.")
+
