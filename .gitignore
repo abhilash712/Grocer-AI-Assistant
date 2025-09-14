@@ -1,1 +1,11 @@
 grocer_ai_data.csv
+# Ignore generated files
+*.csv
+*.sqlite3
+grocer_ai_db/
+__pycache__/
+
+.env
+grocer_ai_data.csv
+grocer_ai_db/
+__pycache__/
