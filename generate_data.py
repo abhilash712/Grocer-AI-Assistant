@@ -146,3 +146,48 @@ if random.random() < POLICY_UPDATE_PROB:
         f.write(f"\n[Update {datetime.now().strftime('%Y-%m-%d')}] Refund policy adjusted.\n")
     print("Policy file updated.")
 
+# --- Daily Incremental Updates ---
+import os
+
+# Ensure we always generate with today's date
+today = datetime.now()
+
+if os.path.exists("grocer_ai_data.csv"):
+    # Load existing
+    df_existing = pd.read_csv("grocer_ai_data.csv")
+
+    # Generate 200 new rows with today's date
+    new_transactions = []
+    for i in range(200):
+        branch_id = random.choice(branches)
+        employee_id = random.choice([e['employee_id'] for e in employees if e['branch_id'] == branch_id])
+        product = products_df.sample(n=1).iloc[0]
+        quantity = random.randint(1, 3)
+        item_total = round(product['unit_price'] * quantity, 2)
+
+        new_transactions.append({
+            'transaction_id': f"TRN-{today.strftime('%Y%m%d')}-{i}",
+            'date_time': today.strftime("%Y-%m-%d %H:%M:%S"),
+            'customer_id': f"CUST-{random.randint(1, 10000)}",
+            'branch_id': branch_id,
+            'employee_id': employee_id,
+            'product_sku': product['product_sku'],
+            'product_name': product['product_name'],
+            'product_category': product['product_category'],
+            'unit_price': product['unit_price'],
+            'quantity': quantity,
+            'total_amount': item_total,
+            'customer_feedback': fake.text(max_nb_chars=100) if random.random() < 0.1 else "",
+            'referral_source': random.choice(['Social Media', 'Newspaper', 'Word-of-Mouth', 'Online Ad'])
+        })
+
+    new_df = pd.DataFrame(new_transactions)
+    # ✅ Merge with employees to avoid NaN
+    new_df = new_df.merge(employees_df, on=['employee_id', 'branch_id'], how='left')
+
+    final_df = pd.concat([df_existing, new_df], ignore_index=True)
+    final_df.to_csv("grocer_ai_data.csv", index=False)
+    print(f"Updated grocer_ai_data.csv with 200 new rows for {today.date()}. Total rows now: {len(final_df)}")
+
+else:
+    print("No existing file found. Run the full generator first.")

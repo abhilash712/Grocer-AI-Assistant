@@ -10,7 +10,7 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import TextLoader, CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -46,63 +46,80 @@ if HAS_GOOGLE_GENAI:
         google_api_key=os.getenv("GOOGLE_API_KEY")
     )
 
-# Vectorstore setup with auto-build fallback
+# --- Vectorstore setup ---
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-persist_dir = "./grocer_ai_db"
 
-if not os.path.exists(persist_dir):
-    print("⚡ Building vector DB from policies...")
-    loader = TextLoader("grocer_ai_policies.txt")
-    docs = loader.load()
+# Transactions DB
+csv_dir = "./grocer_ai_db_csv"
+if not os.path.exists(csv_dir):
+    print("⚡ Building CSV vector DB...")
+    csv_loader = CSVLoader(file_path="grocer_ai_data.csv")
+    csv_docs = csv_loader.load()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    chunks = splitter.split_documents(docs)
-    vectorstore = Chroma.from_documents(chunks, embeddings, persist_directory=persist_dir)
-    vectorstore.persist()
+    csv_chunks = splitter.split_documents(csv_docs)
+    csv_store = Chroma.from_documents(csv_chunks, embeddings, persist_directory=csv_dir)
+    csv_store.persist()
 else:
-    print("✅ Loading existing vector DB...")
-    vectorstore = Chroma(persist_directory=persist_dir, embedding_function=embeddings)
+    print("✅ Loading existing CSV DB...")
+    csv_store = Chroma(persist_directory=csv_dir, embedding_function=embeddings)
 
-retriever = vectorstore.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 10}  # fetch up to 10 most similar docs
-)
+csv_retriever = csv_store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
+# Policies DB
+policy_dir = "./grocer_ai_db_policies"
+if not os.path.exists(policy_dir):
+    print("⚡ Building Policies vector DB...")
+    policy_loader = TextLoader("grocer_ai_policies.txt")
+    policy_docs = policy_loader.load()
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    policy_chunks = splitter.split_documents(policy_docs)
+    policy_store = Chroma.from_documents(policy_chunks, embeddings, persist_directory=policy_dir)
+    policy_store.persist()
+else:
+    print("✅ Loading existing Policies DB...")
+    policy_store = Chroma(persist_directory=policy_dir, embedding_function=embeddings)
 
-# Prompt template (used only if LLM exists)
+policy_retriever = policy_store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+
 prompt = PromptTemplate.from_template("""
-You are Grocer-AI Assistant. 
-Always answer questions **only** using the provided tools and retrieved documents. 
-If the answer is not in the documents, say "I could not find this in the policies."
+You are Grocer-AI, an intelligent assistant for a grocery retail company.
 
-You have access to the following tools:
-
+Available tools:
 {tools}
 
-Use the following format:
+IMPORTANT:
+- If the question is about **refunds, leave days, employee rules, or policies** → use **GrocerAI_Policies**.
+- If the question is about **sales, employees, numbers, transactions** → use **GrocerAI_Transactions**.
+- If calculations are required, use **Python_REPL**.
 
+Answer format:
 Question: {input}
-Thought: think about which tool to use
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: Reason about which tool is needed
+Action: Choose one tool from [{tool_names}]
+Action Input: The exact input
+Observation: The tool output
+... (repeat if needed)
 Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+Final Answer: 📝 **Answer:** (clear, friendly explanation)
 
-Begin!
-
-Question: {input}
-Thought:{agent_scratchpad}
+{agent_scratchpad}
 """)
 
 
-# Tools
+# --- Tools ---
+# Tools setup
 python_repl = PythonREPLTool()
+
 tools = [
     create_retriever_tool(
-        retriever,
-        "GrocerAI_data_retriever",
-        "Use this to fetch company policies and rules."
+        csv_retriever,
+        "GrocerAI_Transactions",
+        "Use this tool for answering questions about sales, employees, transactions, or numbers."
+    ),
+    create_retriever_tool(
+        policy_retriever,
+        "GrocerAI_Policies",
+        "Use this tool for answering questions about company policies, refunds, rules, and employee guidelines."
     ),
     Tool(
         name="Python_REPL",
@@ -111,45 +128,55 @@ tools = [
     ),
 ]
 
-# Agent setup (only if LLM is available)
+
+
+
+# --- Agent setup ---
 agent_executor = None
 if HAS_GOOGLE_GENAI and llm is not None:
     agent = create_react_agent(llm, tools, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 # ✅ Main function for Streamlit
+
 def run_query(question: str):
     """
+    Routes questions to the right retriever (Policies vs Transactions).
     Returns (answer_text, [retrieved_doc_snippets]).
-    If Gemini/GG is unavailable or answer is unclear, shows top retrieved docs.
     """
-    # Always try retrieval first
+
+    # --- Routing logic ---
+    policy_keywords = ["policy", "refund", "leave", "rules", "guidelines", "conduct"]
+    use_policy = any(kw in question.lower() for kw in policy_keywords)
+
+    retriever_to_use = policy_retriever if use_policy else csv_retriever
+
+    # --- Get documents ---
     try:
-        docs = retriever.get_relevant_documents(question)
+        docs = retriever_to_use.get_relevant_documents(question)
         retrieved_docs = [getattr(d, "page_content", str(d)) for d in docs[:5]]
     except Exception as e:
         return f"Error accessing retriever: {e}", []
 
-    # If no LLM → fallback to docs
+    # --- Fallback mode ---
     if not HAS_GOOGLE_GENAI or agent_executor is None:
-        if retrieved_docs:
+        if docs:
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
-            return f"(Fallback) LLM not available. Top retrieved documents:\n\n{snippet}", retrieved_docs
-        else:
-            return "(Fallback) No LLM and no docs found.", []
+            return f"(Fallback: LLM not available)\n\n{snippet}", retrieved_docs
+        return "(Fallback: No docs found)", []
 
-    # If LLM is available → use agent
+    # --- Agent mode ---
     try:
         result = agent_executor.invoke({"input": question})
         answer = result.get("output") or ""
-        # 🔑 Fallback if LLM answer is empty/unhelpful
-        if not answer.strip() and retrieved_docs:
+        if not answer.strip() and docs:
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
-            return f"(LLM gave no clear answer, showing retrieved docs instead):\n\n{snippet}", retrieved_docs
+            return f"(LLM gave no clear answer, showing docs instead):\n\n{snippet}", retrieved_docs
         return answer, retrieved_docs
     except Exception as e:
-        # On error, still fallback to docs
-        if retrieved_docs:
+        if docs:
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
-            return f"(LLM error: {e})\n\nTop retrieved docs:\n\n{snippet}", retrieved_docs
+            return f"(LLM error: {e})\n\nDocs:\n\n{snippet}", retrieved_docs
         return f"Agent error: {e}", []
+
+ 

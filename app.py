@@ -1,6 +1,10 @@
 # app.py
 import subprocess, os
 from datetime import datetime
+import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
+from query_app import run_query
 
 # ⚡ Auto-update dataset once per day
 today_flag = "last_run.flag"
@@ -9,13 +13,10 @@ if not os.path.exists(today_flag) or open(today_flag).read().strip() != str(date
     with open(today_flag, "w") as f:
         f.write(str(datetime.now().date()))
 
-
-
-import streamlit as st
-from query_app import run_query
-
-st.set_page_config(page_title="Grocer-AI Assistant", page_icon="🛒", layout="centered")
-
+# --------------------
+# Streamlit Setup
+# --------------------
+st.set_page_config(page_title="Grocer-AI Assistant", page_icon="🛒", layout="wide")
 
 st.markdown(
     """
@@ -29,7 +30,10 @@ st.markdown(
     ---
     """
 )
-# Input box & history
+
+# --------------------
+# Q&A Section
+# --------------------
 if "history" not in st.session_state:
     st.session_state.history = []
 
@@ -68,16 +72,40 @@ if st.session_state.history:
                 st.markdown(f"- {d}")
         st.markdown("---")
 
-import pandas as pd
-from datetime import datetime
-
+# --------------------
+# Load Data
+# --------------------
 st.markdown("## 📊 Daily Sales Dashboard")
 
 try:
     df = pd.read_csv("grocer_ai_data.csv", parse_dates=["date_time"])
+    df["date"] = pd.to_datetime(df["date_time"]).dt.date  # ensure clean date column
 
+    # --------------------
+    # Sidebar Filters
+    # --------------------
+    st.sidebar.header("🔎 Filters")
+
+    start_date = st.sidebar.date_input("Start Date", df["date"].min())
+    end_date = st.sidebar.date_input("End Date", df["date"].max())
+    branch_options = ["All"] + sorted(df["branch_id"].unique().tolist())
+    selected_branch = st.sidebar.selectbox("Select Branch", branch_options)
+    search_product = st.sidebar.text_input("Search Product")
+
+    # Apply filters
+    filtered_df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
+
+    if selected_branch != "All":
+        filtered_df = filtered_df[filtered_df["branch_id"] == selected_branch]
+
+    if search_product:
+        filtered_df = filtered_df[filtered_df["product_name"].str.contains(search_product, case=False, na=False)]
+
+    # --------------------
+    # Daily Metrics
+    # --------------------
     today = datetime.now().date()
-    today_df = df[df["date_time"].dt.date == today]
+    today_df = filtered_df[filtered_df["date"] == today]
 
     if not today_df.empty:
         total_txns = len(today_df)
@@ -98,9 +126,39 @@ try:
             st.write(", ".join(new_emps))
         else:
             st.write("No new employees this month.")
-
     else:
         st.info("No transactions recorded for today yet.")
+
+    # --------------------
+    # Sales Trend (7 Days)
+    # --------------------
+    st.subheader("📈 Sales Trend (Last 7 Days)")
+
+    last_7_days = filtered_df[filtered_df["date"] >= (filtered_df["date"].max() - pd.Timedelta(days=7))]
+    sales_trend = last_7_days.groupby("date")["total_amount"].sum()
+
+    fig, ax = plt.subplots()
+    sales_trend.plot(kind="line", marker="o", ax=ax)
+    ax.set_ylabel("Sales ($)")
+    ax.set_xlabel("Date")
+    ax.set_title("Total Sales in Last 7 Days")
+    st.pyplot(fig)
+
+    # --------------------
+    # Top 5 Categories Today
+    # --------------------
+    st.subheader("📊 Top 5 Categories Today")
+
+    today_data = filtered_df[filtered_df["date"] == today]
+    if not today_data.empty:
+        top_categories = today_data.groupby("product_category")["total_amount"].sum().sort_values(ascending=False).head(5)
+
+        fig, ax = plt.subplots()
+        top_categories.plot(kind="bar", ax=ax, color="skyblue")
+        ax.set_ylabel("Sales ($)")
+        ax.set_xlabel("Category")
+        ax.set_title("Top 5 Product Categories Today")
+        st.pyplot(fig)
 
 except Exception as e:
     st.error(f"Dashboard error: {e}")
