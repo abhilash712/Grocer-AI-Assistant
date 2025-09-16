@@ -82,26 +82,35 @@ else:
 policy_retriever = policy_store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
 prompt = PromptTemplate.from_template("""
-You are Grocer-AI, an intelligent assistant for a grocery retail company.
+You are **Grocer-AI Assistant**, a helpful, friendly, and professional company AI.
 
-Available tools:
+You can use these tools:
 {tools}
 
-IMPORTANT:
-- If the question is about **refunds, leave days, employee rules, or policies** → use **GrocerAI_Policies**.
-- If the question is about **sales, employees, numbers, transactions** → use **GrocerAI_Transactions**.
-- If calculations are required, use **Python_REPL**.
+Rules:
+- If question is about **policies** → use GrocerAI_Policies.
+- If about **sales, employees, transactions** → use GrocerAI_Transactions.
+- If calculations needed → use Python_REPL.
 
-Answer format:
+Always answer like this:
+
+📝 **Answer:** (clear explanation in plain English)  
+📊 **Supporting Info:** (facts, numbers, or doc snippets if available)  
+
+If you cannot find the answer, say:  
+📝 **Answer:** I'm sorry, I could not find that policy in the available documents.  
+📊 **Supporting Info:** Try asking about refunds, leave days, or employee performance.  
+
+Format:
 Question: {input}
-Thought: Reason about which tool is needed
-Action: Choose one tool from [{tool_names}]
-Action Input: The exact input
-Observation: The tool output
-... (repeat if needed)
+Thought: reasoning
+Action: the action to take (from [{tool_names}])
+Action Input: the input
+Observation: result
+... (repeat as needed)
 Thought: I now know the final answer
-Final Answer: 📝 **Answer:** (clear, friendly explanation)
-
+Final Answer: 📝 **Answer:** ...
+📊 **Supporting Info:** ...
 {agent_scratchpad}
 """)
 
@@ -141,42 +150,48 @@ if HAS_GOOGLE_GENAI and llm is not None:
 
 def run_query(question: str):
     """
-    Routes questions to the right retriever (Policies vs Transactions).
-    Returns (answer_text, [retrieved_doc_snippets]).
+    Force route based on keywords:
+    - Policies → grocer_ai_policies.txt
+    - Transactions → grocer_ai_data.csv
     """
+    q_lower = question.lower()
 
-    # --- Routing logic ---
-    policy_keywords = ["policy", "refund", "leave", "rules", "guidelines", "conduct"]
-    use_policy = any(kw in question.lower() for kw in policy_keywords)
+    # 🔑 Route to correct retriever
+    if any(word in q_lower for word in ["policy", "refund", "exchange", "leave", "guideline", "rule", "discount"]):
+        docs = policy_retriever.get_relevant_documents(question)
+        retriever_used = "GrocerAI_Policies"
+    else:
+        docs = csv_retriever.get_relevant_documents(question)
+        retriever_used = "GrocerAI_Transactions"
 
-    retriever_to_use = policy_retriever if use_policy else csv_retriever
+    retrieved_docs = [getattr(d, "page_content", str(d)) for d in docs[:5]]
 
-    # --- Get documents ---
-    try:
-        docs = retriever_to_use.get_relevant_documents(question)
-        retrieved_docs = [getattr(d, "page_content", str(d)) for d in docs[:5]]
-    except Exception as e:
-        return f"Error accessing retriever: {e}", []
-
-    # --- Fallback mode ---
+    # --- If no LLM, fallback to retrieved docs ---
     if not HAS_GOOGLE_GENAI or agent_executor is None:
-        if docs:
+        if retrieved_docs:
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
-            return f"(Fallback: LLM not available)\n\n{snippet}", retrieved_docs
-        return "(Fallback: No docs found)", []
+            return f"(Fallback - {retriever_used})\n\n{snippet}", retrieved_docs
+        return f"(Fallback) No documents found in {retriever_used}", []
 
-    # --- Agent mode ---
+    # --- If LLM is available, give it the docs directly ---
     try:
-        result = agent_executor.invoke({"input": question})
-        answer = result.get("output") or ""
-        if not answer.strip() and docs:
-            snippet = "\n\n---\n\n".join(retrieved_docs[:3])
-            return f"(LLM gave no clear answer, showing docs instead):\n\n{snippet}", retrieved_docs
-        return answer, retrieved_docs
+        context = "\n\n".join(retrieved_docs)
+        prompt = f"""
+You are Grocer-AI, an assistant for a retail company.
+
+User Question: {question}
+
+Relevant Context:
+{context}
+
+📝 Answer the user question using the context above. 
+If the answer is not in the context, clearly say: "This information is not available in company data."
+"""
+        result = llm.invoke(prompt)
+        return result, retrieved_docs
     except Exception as e:
-        if docs:
+        if retrieved_docs:
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
-            return f"(LLM error: {e})\n\nDocs:\n\n{snippet}", retrieved_docs
+            return f"(LLM error: {e})\n\nTop {retriever_used} docs:\n\n{snippet}", retrieved_docs
         return f"Agent error: {e}", []
 
- 
