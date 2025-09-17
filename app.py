@@ -1,5 +1,4 @@
 # app.py
-# app.py
 import subprocess, os
 from datetime import datetime
 import pandas as pd
@@ -74,21 +73,39 @@ elif page == "📊 Daily Dashboard":
         df = pd.read_csv("grocer_ai_data.csv", parse_dates=["date_time"])
         df["date"] = pd.to_datetime(df["date_time"]).dt.date
 
-        # Sidebar filters
+        # --- Sidebar filters (PowerBI-like) ---
         st.sidebar.header("🔎 Filters")
-        start_date = st.sidebar.date_input("Start Date", df["date"].min(), key="dash_start")
-        end_date = st.sidebar.date_input("End Date", df["date"].max(), key="dash_end")
-        branch_options = ["All"] + sorted(df["branch_id"].unique().tolist())
-        selected_branch = st.sidebar.selectbox("Select Branch", branch_options, key="dash_branch")
-        search_product = st.sidebar.text_input("Search Product", key="dash_product")
 
+        start_date = st.sidebar.date_input("Start Date", df["date"].min(), key="sid_start")
+        end_date = st.sidebar.date_input("End Date", df["date"].max(), key="sid_end")
+
+        branches_all = sorted(df["branch_id"].unique().tolist())
+        selected_branches = st.sidebar.multiselect(
+            "Branches (multi)", branches_all, default=branches_all, key="sid_branches"
+        )
+
+        categories_all = sorted(df["product_category"].unique().tolist())
+        selected_categories = st.sidebar.multiselect(
+            "Categories (multi)", categories_all, default=categories_all, key="sid_categories"
+        )
+
+        search_product = st.sidebar.text_input("Search Product", key="sid_product_search")
+
+        # Apply filters
         filtered_df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-        if selected_branch != "All":
-            filtered_df = filtered_df[filtered_df["branch_id"] == selected_branch]
-        if search_product:
-            filtered_df = filtered_df[filtered_df["product_name"].str.contains(search_product, case=False, na=False)]
 
-        # Daily metrics
+        if selected_branches:
+            filtered_df = filtered_df[filtered_df["branch_id"].isin(selected_branches)]
+
+        if selected_categories:
+            filtered_df = filtered_df[filtered_df["product_category"].isin(selected_categories)]
+
+        if search_product:
+            filtered_df = filtered_df[
+                filtered_df["product_name"].str.contains(search_product, case=False, na=False)
+            ]
+
+        # --- Daily metrics ---
         today = datetime.now().date()
         today_df = filtered_df[filtered_df["date"] == today]
 
@@ -108,7 +125,7 @@ elif page == "📊 Daily Dashboard":
         else:
             st.info("No transactions recorded for today yet.")
 
-        # Sales trend (7 days)
+        # --- Sales trend (7 days) ---
         st.subheader("📈 Sales Trend (Last 7 Days)")
         last_7_days = filtered_df[filtered_df["date"] >= (filtered_df["date"].max() - pd.Timedelta(days=7))]
         sales_trend = last_7_days.groupby("date")["total_amount"].sum()
@@ -118,7 +135,7 @@ elif page == "📊 Daily Dashboard":
         ax.set_title("Total Sales in Last 7 Days")
         st.pyplot(fig)
 
-        # Top categories today
+        # --- Top categories today ---
         st.subheader("📊 Top 5 Categories Today")
         today_data = filtered_df[filtered_df["date"] == today]
         if not today_data.empty:
