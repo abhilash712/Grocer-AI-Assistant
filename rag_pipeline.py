@@ -6,7 +6,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 print("📂 Loading data...")
 
 # Load CSV
-csv_loader = CSVLoader(file_path="grocer_ai_data.csv")
+csv_loader = CSVLoader(file_path="grocer_ai_data_sample.csv")
 csv_docs = csv_loader.load()
 print(f"✅ Loaded {len(csv_docs)} CSV docs")
 
