@@ -1,4 +1,11 @@
 # app.py
+import os
+
+DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
+print("Using data file:", DATA_FILE)
+
+
+
 import subprocess, os
 from datetime import datetime
 import pandas as pd
@@ -156,7 +163,7 @@ elif page == "🔮 Forecasts":
     st.title("🔮 Sales Forecasts")
 
     try:
-        df = pd.read_csv("grocer_ai_data.csv", parse_dates=["date_time"])
+        df = pd.read_csv("grocer_ai_data_sample.csv", parse_dates=["date_time"])
         df["date"] = pd.to_datetime(df["date_time"]).dt.date
 
         # --- Overall Forecast ---

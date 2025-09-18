@@ -1,3 +1,11 @@
+import os
+
+DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
+print("Using data file:", DATA_FILE)
+
+
+
+
 # Patch sqlite3 for Chroma on Streamlit Cloud
 try:
     import pysqlite3
@@ -34,7 +42,7 @@ load_dotenv()
 
 # Optional: load dataset (for local analytics, not mandatory in Streamlit)
 try:
-    df = pd.read_csv("grocer_ai_data.csv")
+    df = pd.read_csv("grocer_ai_data_sample.csv")
 except FileNotFoundError:
     df = None
 
@@ -53,7 +61,7 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 csv_dir = "./grocer_ai_db_csv"
 if not os.path.exists(csv_dir):
     print("⚡ Building CSV vector DB...")
-    csv_loader = CSVLoader(file_path="grocer_ai_data.csv")
+    csv_loader = CSVLoader(file_path="grocer_ai_data_sample.csv")
     csv_docs = csv_loader.load()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     csv_chunks = splitter.split_documents(csv_docs)
