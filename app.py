@@ -77,7 +77,7 @@ elif page == "📊 Daily Dashboard":
     st.title("📊 Daily Sales Dashboard")
 
     try:
-        df = pd.read_csv("grocer_ai_data.csv", parse_dates=["date_time"])
+        df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
         df["date"] = pd.to_datetime(df["date_time"]).dt.date
 
         # --- Sidebar filters (PowerBI-like) ---
@@ -163,7 +163,7 @@ elif page == "🔮 Forecasts":
     st.title("🔮 Sales Forecasts")
 
     try:
-        df = pd.read_csv("grocer_ai_data_sample.csv", parse_dates=["date_time"])
+        df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
         df["date"] = pd.to_datetime(df["date_time"]).dt.date
 
         # --- Overall Forecast ---
