@@ -1,22 +1,18 @@
+DATA_FILE = "grocer_ai_data_sample.csv"
+
 import os
+import sys
+import pandas as pd
+from dotenv import load_dotenv
 
-DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
-print("Using data file:", DATA_FILE)
-
-
-
+import streamlit as st  # ✅ Added for secrets
 
 # Patch sqlite3 for Chroma on Streamlit Cloud
 try:
     import pysqlite3
-    import sys
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 except Exception as e:
     print("SQLite patching failed:", e)
-
-import os
-import pandas as pd
-from dotenv import load_dotenv
 
 from langchain_community.document_loaders import TextLoader, CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -37,22 +33,29 @@ except Exception:
     HAS_GOOGLE_GENAI = False
     print("⚠️ Warning: langchain_google_genai not available; running in retrieval-only mode.")
 
-# Load API key
+# ✅ Load API key (first from st.secrets, else from .env/env)
 load_dotenv()
+def get_secret(key):
+    return st.secrets.get(key) if key in st.secrets else os.getenv(key)
+
+GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
 
 # Optional: load dataset (for local analytics, not mandatory in Streamlit)
 try:
-    df = pd.read_csv("grocer_ai_data_sample.csv")
+    df = pd.read_csv(DATA_FILE)
 except FileNotFoundError:
     df = None
 
 # Initialize LLM if available
 llm = None
-if HAS_GOOGLE_GENAI:
+if HAS_GOOGLE_GENAI and GOOGLE_API_KEY:
     llm = GoogleGenerativeAI(
         model="gemini-1.5-flash",
-        google_api_key=os.getenv("GOOGLE_API_KEY")
+        google_api_key=GOOGLE_API_KEY
     )
+    print("✅ Google Generative AI initialized")
+else:
+    print("❌ No valid Google API key found — running in fallback mode")
 
 # --- Vectorstore setup ---
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -61,7 +64,7 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 csv_dir = "./grocer_ai_db_csv"
 if not os.path.exists(csv_dir):
     print("⚡ Building CSV vector DB...")
-    csv_loader = CSVLoader(file_path="grocer_ai_data_sample.csv")
+    csv_loader = CSVLoader(file_path=DATA_FILE)  # ✅ FIXED (was "DATA_FILE" as string)
     csv_docs = csv_loader.load()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     csv_chunks = splitter.split_documents(csv_docs)
@@ -122,11 +125,8 @@ Final Answer: 📝 **Answer:** ...
 {agent_scratchpad}
 """)
 
-
 # --- Tools ---
-# Tools setup
 python_repl = PythonREPLTool()
-
 tools = [
     create_retriever_tool(
         csv_retriever,
@@ -145,9 +145,6 @@ tools = [
     ),
 ]
 
-
-
-
 # --- Agent setup ---
 agent_executor = None
 if HAS_GOOGLE_GENAI and llm is not None:
@@ -155,7 +152,6 @@ if HAS_GOOGLE_GENAI and llm is not None:
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 # ✅ Main function for Streamlit
-
 def run_query(question: str):
     """
     Force route based on keywords:
@@ -202,4 +198,3 @@ If the answer is not in the context, clearly say: "This information is not avail
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
             return f"(LLM error: {e})\n\nTop {retriever_used} docs:\n\n{snippet}", retrieved_docs
         return f"Agent error: {e}", []
-

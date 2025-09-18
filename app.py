@@ -1,18 +1,37 @@
-# app.py
+# =========================
+# app.py (Edited)
+# =========================
+
 import os
-
-DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
-print("Using data file:", DATA_FILE)
-
-
-
-import subprocess, os
+import subprocess
 from datetime import datetime
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-from query_app import run_query
 from prophet import Prophet
+
+# Import your query handler (AI Assistant logic)
+from query_app import run_query
+
+# =========================
+# 🔑 Secrets / API keys
+# =========================
+# Helper: get from st.secrets if available, else fallback to env vars (for local dev)
+def get_secret(key):
+    return st.secrets.get(key) if key in st.secrets else os.getenv(key)
+
+# Example usage (if needed in app.py or inside query_app.py)
+GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
+
+# Debug: check if key is loaded (remove in production)
+# st.write("API key loaded:", bool(GOOGLE_API_KEY or OPENAI_API_KEY))
+
+# =========================
+# 📂 Data file setup
+# =========================
+DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
+print("Using data file:", DATA_FILE)
 
 # ⚡ Auto-update dataset once per day
 today_flag = "last_run.flag"
@@ -21,10 +40,14 @@ if not os.path.exists(today_flag) or open(today_flag).read().strip() != str(date
     with open(today_flag, "w") as f:
         f.write(str(datetime.now().date()))
 
+# =========================
 # --- Streamlit Config ---
+# =========================
 st.set_page_config(page_title="Grocer-AI Assistant", page_icon="🛒", layout="wide")
 
+# =========================
 # --- Sidebar Navigation ---
+# =========================
 st.sidebar.title("📊 Navigation")
 page = st.sidebar.radio("Go to", ["🤖 AI Assistant", "📊 Daily Dashboard", "🔮 Forecasts"])
 
@@ -55,8 +78,12 @@ if page == "🤖 AI Assistant":
             st.warning("⚠️ Please enter a question before submitting.")
         else:
             with st.spinner("Thinking... 🤔"):
-                answer, retrieved_docs = run_query(user_question)
-            st.session_state.history.append({"q": user_question, "a": answer, "docs": retrieved_docs})
+                try:
+                    # Pass user_question to query_app (which should use GOOGLE_API_KEY inside)
+                    answer, retrieved_docs = run_query(user_question)
+                    st.session_state.history.append({"q": user_question, "a": answer, "docs": retrieved_docs})
+                except Exception as e:
+                    st.error(f"❌ AI Assistant error: {e}")
 
     if st.session_state.history:
         st.markdown("---")
