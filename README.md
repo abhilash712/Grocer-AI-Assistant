@@ -1,16 +1,31 @@
-🛒 Grocer-AI Data & Analytics Assistant
+# 🛒 Grocer-AI Data & Analytics Assistant
 
-An AI-powered data analytics assistant for the retail/grocery sector.
+[![Streamlit](https://img.shields.io/badge/Built%20With-Streamlit-orange?logo=streamlit)](https://streamlit.io/)
+[![LangChain](https://img.shields.io/badge/AI-LangChain-blue?logo=python)](https://langchain.com/)
+[![Prophet](https://img.shields.io/badge/Forecasting-Prophet-brightgreen)](https://facebook.github.io/prophet/)
+[![GitHub Actions](https://img.shields.io/github/workflow-status/abhilash712/Grocer-AI-Assistant/CI)](https://github.com/abhilash712/Grocer-AI-Assistant/actions)
 
-🤖 Natural language Q&A about sales, employees, policies
+---
 
-📊 Interactive dashboards for analytics
+## 🌟 Overview
 
-🔮 Sales forecasting with Prophet
+**Grocer-AI Data & Analytics Assistant** is a full-stack, AI-powered assistant built for the retail and grocery industry.  
+It enables natural language Q&A, data analytics, sales forecasting, and automated daily reports—streamlining decision-making for managers and analysts.
 
-📧 Automated daily reports via email + GitHub Actions
+---
 
-📂 Project Structure
+## 🚀 Why Use This Project?
+
+- **End-to-end solution:** From synthetic data generation to interactive dashboards and email automation.
+- **Real business value:** Focused on retail/grocery analytics, policies, and employee management.
+- **Modern AI stack:** Utilizes Streamlit, LangChain (RAG), Prophet, ChromaDB, and GitHub Actions.
+- **Great for demos & interviews:** Showcases data science, ML, analytics engineering, and automation skills.
+
+---
+
+## 🏗️ Project Structure
+
+```
 ├── app.py                 # Streamlit app (frontend UI)
 ├── query_app.py           # Backend: AI agent, retrievers, tools
 ├── generate_data.py       # Synthetic grocery dataset generator
@@ -22,42 +37,115 @@ An AI-powered data analytics assistant for the retail/grocery sector.
 ├── .github/workflows      # GitHub Actions CI/CD
 ├── .gitignore             # Ignore local files/venv
 └── README.md              # Project documentation
+```
 
-🚀 Features
-🛒 Synthetic Dataset (50k+ transactions)
+---
 
-Multiple branches, employees, products, categories
+## ✨ Features
 
-Includes customer feedback, referrals, hiring events
+### 🛒 Synthetic Dataset
+- 50k+ transactions with multiple branches, employees, and products
+- Includes customer feedback, referrals, hiring events
 
-🧑‍💼 Company Policies Assistant
+### 🧑‍💼 Company Policies Q&A (RAG)
+- Ask about refund, leave, performance policies
+- Powered by LangChain + ChromaDB (Retrieval Augmented Generation)
 
-Refund rules, leave policies, employee performance
+### 🤖 AI Assistant
+- ReAct agent with:
+  - **GrocerAI_Transactions retriever**
+  - **GrocerAI_Policies retriever**
+  - **Python REPL analytics tool**
 
-Powered by RAG (LangChain + ChromaDB)
+### 📊 Interactive Dashboards
+- Sales KPIs, filters, top products & categories
+- New hires and performance tracking
 
-🤖 AI Assistant
+### 🔮 Sales Forecasting
+- 7-day forecasts (overall, by category, by branch) using Prophet
 
-ReAct agent with:
+### 📧 Automation & Reporting
+- Daily synthetic data generation
+- Automated daily email reports (GitHub Actions)
 
-GrocerAI_Transactions retriever
+---
 
-GrocerAI_Policies retriever
+## 🖥️ Demo
 
-Python REPL tool
+<!--
+Add a link to your deployed app here if public, or a YouTube video demo!
+Example:  
+[Live Demo](https://share.streamlit.io/...)  
+[![Demo Video](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://youtu.be/VIDEO_ID)
+-->
 
-📊 Daily Dashboard
+---
 
-Sales KPIs, filters, top products & categories
+## 🚦 Getting Started
 
-New hires and performance tracking
+### 1. Clone the Repository
 
-🔮 Forecasting (Prophet)
+```bash
+git clone https://github.com/abhilash712/Grocer-AI-Assistant.git
+cd Grocer-AI-Assistant
+```
 
-7-day forecasts overall, by category, by branch
+### 2. Install Dependencies
 
-📧 Automation
+```bash
+pip install -r requirements.txt
+```
 
-Daily synthetic data generation
+### 3. Generate Synthetic Data
 
-Automated email reports with GitHub Actions
+```bash
+python generate_data.py
+```
+
+### 4. Run the App
+
+```bash
+streamlit run app.py
+```
+
+---
+
+## 📁 Customization
+
+- **Policies:** Edit `grocer_ai_policies.txt` to update company rules.
+- **GitHub Actions:** Modify workflows in `.github/workflows` for automation customizations.
+- **Email Reports:** Configure recipients and SMTP in `send_email.py`.
+
+---
+
+## 🛠️ Technologies Used
+
+- **Streamlit:** Interactive UI
+- **LangChain + ChromaDB:** Retrieval-Augmented Generation
+- **Prophet:** Time series forecasting
+- **GitHub Actions:** CI/CD and automation
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for more information.
+
+---
+
+## 🙌 Acknowledgements
+
+- [Streamlit](https://streamlit.io/)
+- [LangChain](https://www.langchain.com/)
+- [Prophet](https://facebook.github.io/prophet/)
+- [ChromaDB](https://www.trychroma.com/)
+
+---
+
+> **Created by [Abhilash](https://github.com/abhilash712)**
