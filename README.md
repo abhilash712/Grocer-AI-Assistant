@@ -1,22 +1,14 @@
 🛒 Grocer-AI Data & Analytics Assistant
 
-
-
-
-
-
-
-
 An AI-powered data analytics assistant for the retail/grocery sector.
-This project simulates real-world sales + policy data and enables:
 
-Natural language Q&A about transactions, employees, and policies.
+🤖 Natural language Q&A about sales, employees, policies
 
-Interactive dashboards for sales analysis.
+📊 Interactive dashboards for analytics
 
-Forecasting future sales trends with Prophet.
+🔮 Sales forecasting with Prophet
 
-Automated daily reports via email + GitHub Actions.
+📧 Automated daily reports via email + GitHub Actions
 
 📂 Project Structure
 ├── app.py                 # Streamlit app (frontend UI)
@@ -34,117 +26,38 @@ Automated daily reports via email + GitHub Actions.
 🚀 Features
 🛒 Synthetic Dataset (50k+ transactions)
 
-Multiple branches, employees, products, categories.
+Multiple branches, employees, products, categories
 
-Includes customer feedback, referrals, hiring events.
+Includes customer feedback, referrals, hiring events
 
 🧑‍💼 Company Policies Assistant
 
-Answers questions on refund rules, leave policies, employee performance.
+Refund rules, leave policies, employee performance
 
-Uses RAG (Retrieval Augmented Generation) for contextual answers.
+Powered by RAG (LangChain + ChromaDB)
 
-🤖 AI Assistant (LangChain)
+🤖 AI Assistant
 
-Supports natural language queries.
-
-ReAct Agent with:
+ReAct agent with:
 
 GrocerAI_Transactions retriever
 
 GrocerAI_Policies retriever
 
-Python REPL tool (for calculations).
+Python REPL tool
 
-📊 Analytics Dashboard (Streamlit)
+📊 Daily Dashboard
 
-Daily metrics (transactions, sales).
+Sales KPIs, filters, top products & categories
 
-Filters by date, branch, category, product.
-
-Top products & categories, new hires.
+New hires and performance tracking
 
 🔮 Forecasting (Prophet)
 
-Overall sales forecast (7 days).
+7-day forecasts overall, by category, by branch
 
-Category-wise & branch-wise forecasts.
+📧 Automation
 
-📧 Automation (GitHub Actions + SMTP)
+Daily synthetic data generation
 
-Auto-generates daily transactions.
-
-Sends email reports to stakeholders.
-
-⚙️ Setup Instructions
-
-Clone the repository:
-
-git clone https://github.com/abhilash712/Grocer-AI-Assistant.git
-cd Grocer-AI-Assistant
-
-
-Install dependencies:
-
-pip install -r requirements.txt
-
-
-Run locally:
-
-streamlit run app.py
-
-
-Secrets (create .env or add in .streamlit/secrets.toml):
-
-GOOGLE_API_KEY = "your_api_key_here"
-
-# Gmail SMTP (for email automation)
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_USER = "your_email@gmail.com"
-SMTP_PASS = "your_app_password"
-EMAIL_FROM = "your_email@gmail.com"
-EMAIL_TO = "recipient1@gmail.com,recipient2@gmail.com"
-
-📸 Screenshots
-🔹 AI Assistant
-
-Ask about policies, employees, or sales:
-(screenshot here)
-
-🔹 Daily Dashboard
-
-Track sales, products, and categories:
-(screenshot here)
-
-🔹 Forecasts
-
-See 7-day predictions by category/branch:
-(screenshot here)
-
-🛠 Tech Stack
-
-Python 3.10+
-
-Streamlit → Interactive web UI
-
-LangChain → RAG + LLM agent
-
-ChromaDB → Vector database
-
-Prophet → Time-series forecasting
-
-GitHub Actions → Automation (daily updates + reports)
-
-👨‍💻 Author
-
-Abhilash V
-📍 Aspiring Data Scientist | Passionate about AI & Analytics
-
-🔗 LinkedIn
- • GitHub
-
-⭐ Contribute
-
-If you like this project, please ⭐ the repo!
-Contributions (issues, PRs) are always welcome.
+Automated email reports with GitHub Actions
