@@ -1,11 +1,15 @@
 DATA_FILE = "grocer_ai_data_sample.csv"
 
+
+from datetime import datetime, timedelta
+import subprocess
 import os
 import sys
 import pandas as pd
+import streamlit as st
 from dotenv import load_dotenv
+from datetime import datetime, timedelta 
 
-import streamlit as st  # ✅ Added for secrets
 
 # Patch sqlite3 for Chroma on Streamlit Cloud
 try:
@@ -24,7 +28,7 @@ from langchain.tools.retriever import create_retriever_tool
 from langchain_experimental.tools.python.tool import PythonREPLTool
 from langchain.tools import Tool
 
-# ✅ optional import of GoogleGenerativeAI
+# ✅ Optional import of GoogleGenerativeAI
 try:
     from langchain_google_genai import GoogleGenerativeAI
     HAS_GOOGLE_GENAI = True
@@ -33,20 +37,53 @@ except Exception:
     HAS_GOOGLE_GENAI = False
     print("⚠️ Warning: langchain_google_genai not available; running in retrieval-only mode.")
 
-# ✅ Load API key (first from st.secrets, else from .env/env)
-load_dotenv()
-def get_secret(key):
-    return st.secrets.get(key) if key in st.secrets else os.getenv(key)
+# --- Secrets handler ---
+load_dotenv()  # for local .env
+
+def get_secret(key: str):
+    """Check Streamlit secrets first (Cloud), else fallback to .env/env vars (local)."""
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.getenv(key)
 
 GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
 
-# Optional: load dataset (for local analytics, not mandatory in Streamlit)
-try:
-    df = pd.read_csv(DATA_FILE)
-except FileNotFoundError:
-    df = None
+# =========================
+# 📂 Data file setup
+# =========================
+DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
+print("Using data file:", DATA_FILE)
 
-# Initialize LLM if available
+today = datetime.now().date()
+
+# Load dataset if exists
+df = None
+if os.path.exists(DATA_FILE):
+    try:
+        df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
+        df["date"] = df["date_time"].dt.date
+    except Exception as e:
+        print("⚠️ Error loading dataset:", e)
+
+# ✅ Always ensure today's data exists
+need_generate = False
+if df is None:
+    need_generate = True
+elif today not in df["date"].unique():
+    need_generate = True
+
+if need_generate:
+    print("⚡ Generating fresh data for today...")
+    subprocess.run(["python", "generate_data.py"])
+    # Reload after generation
+    df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
+    df["date"] = df["date_time"].dt.date
+
+
+# --- Initialize LLM ---
 llm = None
 if HAS_GOOGLE_GENAI and GOOGLE_API_KEY:
     llm = GoogleGenerativeAI(
@@ -64,7 +101,7 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 csv_dir = "./grocer_ai_db_csv"
 if not os.path.exists(csv_dir):
     print("⚡ Building CSV vector DB...")
-    csv_loader = CSVLoader(file_path=DATA_FILE)  # ✅ FIXED (was "DATA_FILE" as string)
+    csv_loader = CSVLoader(file_path=DATA_FILE)
     csv_docs = csv_loader.load()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     csv_chunks = splitter.split_documents(csv_docs)
@@ -95,8 +132,10 @@ policy_retriever = policy_store.as_retriever(search_type="similarity", search_kw
 prompt = PromptTemplate.from_template("""
 You are **Grocer-AI Assistant**, a helpful, friendly, and professional company AI.
 
-You can use these tools:
+You have access to the following tools:
 {tools}
+
+Tool names you can use: {tool_names}
 
 Rules:
 - If question is about **policies** → use GrocerAI_Policies.
@@ -125,6 +164,7 @@ Final Answer: 📝 **Answer:** ...
 {agent_scratchpad}
 """)
 
+
 # --- Tools ---
 python_repl = PythonREPLTool()
 tools = [
@@ -152,15 +192,38 @@ if HAS_GOOGLE_GENAI and llm is not None:
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 # ✅ Main function for Streamlit
+from datetime import datetime, timedelta
+
 def run_query(question: str):
     """
-    Force route based on keywords:
+    Handle queries:
     - Policies → grocer_ai_policies.txt
     - Transactions → grocer_ai_data.csv
+    - Direct sales questions (today, yesterday, last 7 days)
     """
     q_lower = question.lower()
 
-    # 🔑 Route to correct retriever
+    # --- Direct sales calculations ---
+    if df is not None:
+        df["date_time"] = pd.to_datetime(df["date_time"])
+        df["date"] = df["date_time"].dt.date
+
+        if "sales today" in q_lower or "today's sales" in q_lower:
+            today = datetime.now().date()
+            sales_today = df[df["date"] == today]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales today = ${sales_today:,.2f}", []
+
+        if "sales yesterday" in q_lower or "yesterday's sales" in q_lower:
+            yesterday = (datetime.now() - timedelta(days=1)).date()
+            sales_yest = df[df["date"] == yesterday]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales yesterday = ${sales_yest:,.2f}", []
+
+        if "last 7 days" in q_lower or "past week" in q_lower:
+            start = datetime.now().date() - timedelta(days=7)
+            sales_7d = df[df["date"] >= start]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales in last 7 days = ${sales_7d:,.2f}", []
+
+    # --- Retriever route ---
     if any(word in q_lower for word in ["policy", "refund", "exchange", "leave", "guideline", "rule", "discount"]):
         docs = policy_retriever.get_relevant_documents(question)
         retriever_used = "GrocerAI_Policies"
@@ -170,17 +233,17 @@ def run_query(question: str):
 
     retrieved_docs = [getattr(d, "page_content", str(d)) for d in docs[:5]]
 
-    # --- If no LLM, fallback to retrieved docs ---
+    # --- No LLM fallback ---
     if not HAS_GOOGLE_GENAI or agent_executor is None:
         if retrieved_docs:
             snippet = "\n\n---\n\n".join(retrieved_docs[:3])
             return f"(Fallback - {retriever_used})\n\n{snippet}", retrieved_docs
         return f"(Fallback) No documents found in {retriever_used}", []
 
-    # --- If LLM is available, give it the docs directly ---
+    # --- Use LLM ---
     try:
         context = "\n\n".join(retrieved_docs)
-        prompt = f"""
+        custom_prompt = f"""
 You are Grocer-AI, an assistant for a retail company.
 
 User Question: {question}
@@ -191,7 +254,7 @@ Relevant Context:
 📝 Answer the user question using the context above. 
 If the answer is not in the context, clearly say: "This information is not available in company data."
 """
-        result = llm.invoke(prompt)
+        result = llm.invoke(custom_prompt)
         return result, retrieved_docs
     except Exception as e:
         if retrieved_docs:

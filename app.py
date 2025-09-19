@@ -1,44 +1,79 @@
 # =========================
-# app.py (Edited)
+# app.py (Frontend UI)
 # =========================
+from datetime import datetime, timedelta
 
 import os
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 from prophet import Prophet
+from dotenv import load_dotenv
 
-# Import your query handler (AI Assistant logic)
-from query_app import run_query
+# Import query handler (AI Assistant backend)
+from query_app import run_query, get_secret
 
 # =========================
 # 🔑 Secrets / API keys
 # =========================
-# Helper: get from st.secrets if available, else fallback to env vars (for local dev)
-def get_secret(key):
-    return st.secrets.get(key) if key in st.secrets else os.getenv(key)
-
-# Example usage (if needed in app.py or inside query_app.py)
+load_dotenv()
 GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
-OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
 
-# Debug: check if key is loaded (remove in production)
-# st.write("API key loaded:", bool(GOOGLE_API_KEY or OPENAI_API_KEY))
+# Debug button for local/cloud key check
+if st.sidebar.button("🔑 Test API Key"):
+    if GOOGLE_API_KEY:
+        st.sidebar.success("✅ API Key loaded correctly.")
+    else:
+        st.sidebar.error("❌ API Key not found!")
 
 # =========================
 # 📂 Data file setup
 # =========================
-DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
+# Prefer full dataset if available (local run), else use sample file (Cloud/demo)
+# Prefer full dataset if available (local run), else use sample file (Cloud/demo)
+if os.path.exists("grocer_ai_data.csv"):
+    DATA_FILE = "grocer_ai_data.csv"
+elif os.path.exists("grocer_ai_data_sample.csv"):
+    DATA_FILE = "grocer_ai_data_sample.csv"
+else:
+    st.error("❌ No dataset found! Please generate data first.")
+    DATA_FILE = None
+
 print("Using data file:", DATA_FILE)
 
-# ⚡ Auto-update dataset once per day
-today_flag = "last_run.flag"
-if not os.path.exists(today_flag) or open(today_flag).read().strip() != str(datetime.now().date()):
-    subprocess.run(["python", "generate_data.py"])
-    with open(today_flag, "w") as f:
-        f.write(str(datetime.now().date()))
+# 🔍 Debugging aid (optional: remove later)
+if DATA_FILE:
+    try:
+        df_check = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
+        df_check["date"] = df_check["date_time"].dt.date
+        st.sidebar.write("📅 Dates available:", sorted(df_check["date"].unique())[-5:])
+        st.sidebar.write("📅 Today is:", datetime.now().date())
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Could not read dataset: {e}")
+
+
+# Ensure today's transactions exist
+def ensure_today_data():
+    today = datetime.now().date()
+
+    # Load dataset if exists
+    df = None
+    if os.path.exists(DATA_FILE):
+        try:
+            df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
+            df["date"] = df["date_time"].dt.date
+        except Exception as e:
+            print("⚠️ Error loading dataset:", e)
+
+    # If file missing OR today's date not in data → regenerate
+    if df is None or today not in df["date"].unique():
+        print("⚡ Generating fresh data for today...")
+        subprocess.run(["python", "generate_data.py"])
+
+ensure_today_data()
+
 
 # =========================
 # --- Streamlit Config ---
@@ -79,7 +114,6 @@ if page == "🤖 AI Assistant":
         else:
             with st.spinner("Thinking... 🤔"):
                 try:
-                    # Pass user_question to query_app (which should use GOOGLE_API_KEY inside)
                     answer, retrieved_docs = run_query(user_question)
                     st.session_state.history.append({"q": user_question, "a": answer, "docs": retrieved_docs})
                 except Exception as e:
@@ -107,7 +141,7 @@ elif page == "📊 Daily Dashboard":
         df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
         df["date"] = pd.to_datetime(df["date_time"]).dt.date
 
-        # --- Sidebar filters (PowerBI-like) ---
+        # --- Sidebar filters ---
         st.sidebar.header("🔎 Filters")
 
         start_date = st.sidebar.date_input("Start Date", df["date"].min(), key="sid_start")
@@ -127,13 +161,10 @@ elif page == "📊 Daily Dashboard":
 
         # Apply filters
         filtered_df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-
         if selected_branches:
             filtered_df = filtered_df[filtered_df["branch_id"].isin(selected_branches)]
-
         if selected_categories:
             filtered_df = filtered_df[filtered_df["product_category"].isin(selected_categories)]
-
         if search_product:
             filtered_df = filtered_df[
                 filtered_df["product_name"].str.contains(search_product, case=False, na=False)
@@ -244,3 +275,5 @@ elif page == "🔮 Forecasts":
 
     except Exception as e:
         st.error(f"Forecasting error: {e}")
+
+
