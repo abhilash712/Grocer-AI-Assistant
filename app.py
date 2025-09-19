@@ -31,17 +31,28 @@ if st.sidebar.button("🔑 Test API Key"):
 # =========================
 # 📂 Data file setup
 # =========================
-# Prefer full dataset if available (local run), else use sample file (Cloud/demo)
-# Prefer full dataset if available (local run), else use sample file (Cloud/demo)
-if os.path.exists("grocer_ai_data.csv"):
-    DATA_FILE = "grocer_ai_data.csv"
-elif os.path.exists("grocer_ai_data_sample.csv"):
+# Detect if running on Streamlit Cloud
+on_cloud = os.getenv("STREAMLIT_RUNTIME") == "cloud"
+
+if on_cloud:
+    # Use sample dataset on Cloud (stable demo)
     DATA_FILE = "grocer_ai_data_sample.csv"
 else:
-    st.error("❌ No dataset found! Please generate data first.")
-    DATA_FILE = None
+    # Use full dataset locally (with daily automation)
+    DATA_FILE = "grocer_ai_data.csv"
+    today = datetime.now().date()
+
+    # Ensure today's data exists
+    if not os.path.exists(DATA_FILE):
+        subprocess.run(["python", "generate_data.py"])
+    else:
+        df_tmp = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
+        df_tmp["date"] = df_tmp["date_time"].dt.date
+        if today not in df_tmp["date"].unique():
+            subprocess.run(["python", "generate_data.py"])
 
 print("Using data file:", DATA_FILE)
+
 
 # 🔍 Debugging aid (optional: remove later)
 if DATA_FILE:
