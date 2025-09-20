@@ -1,15 +1,14 @@
-DATA_FILE = "grocer_ai_data_sample.csv"
+# =========================
+# query_app.py (Backend: AI + Tools)
+# =========================
 
-
-from datetime import datetime, timedelta
-import subprocess
 import os
 import sys
+import subprocess
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
-from datetime import datetime, timedelta 
-
+from datetime import datetime, timedelta
 
 # Patch sqlite3 for Chroma on Streamlit Cloud
 try:
@@ -54,8 +53,8 @@ GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
 # =========================
 # 📂 Data file setup
 # =========================
-DATA_FILE = "grocer_ai_data_sample.csv" if os.path.exists("grocer_ai_data_sample.csv") else "grocer_ai_data.csv"
-print("Using data file:", DATA_FILE)
+DATA_FILE = "grocer_ai_data.csv"
+print("📂 Using data file:", DATA_FILE)
 
 today = datetime.now().date()
 
@@ -81,7 +80,6 @@ if need_generate:
     # Reload after generation
     df = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
     df["date"] = df["date_time"].dt.date
-
 
 # --- Initialize LLM ---
 llm = None
@@ -129,6 +127,7 @@ else:
 
 policy_retriever = policy_store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
+# --- Prompt template ---
 prompt = PromptTemplate.from_template("""
 You are **Grocer-AI Assistant**, a helpful, friendly, and professional company AI.
 
@@ -164,7 +163,6 @@ Final Answer: 📝 **Answer:** ...
 {agent_scratchpad}
 """)
 
-
 # --- Tools ---
 python_repl = PythonREPLTool()
 tools = [
@@ -192,8 +190,6 @@ if HAS_GOOGLE_GENAI and llm is not None:
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 # ✅ Main function for Streamlit
-from datetime import datetime, timedelta
-
 def run_query(question: str):
     """
     Handle queries:

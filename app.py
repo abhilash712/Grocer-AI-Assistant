@@ -2,10 +2,8 @@
 # app.py (Frontend UI)
 # =========================
 from datetime import datetime, timedelta
-
 import os
 import subprocess
-from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -31,41 +29,10 @@ if st.sidebar.button("🔑 Test API Key"):
 # =========================
 # 📂 Data file setup
 # =========================
-# Detect if running on Streamlit Cloud
-on_cloud = os.getenv("STREAMLIT_RUNTIME") == "cloud"
+DATA_FILE = "grocer_ai_data.csv"
+print("📂 Using data file:", DATA_FILE)
 
-if on_cloud:
-    # Use sample dataset on Cloud (stable demo)
-    DATA_FILE = "grocer_ai_data_sample.csv"
-else:
-    # Use full dataset locally (with daily automation)
-    DATA_FILE = "grocer_ai_data.csv"
-    today = datetime.now().date()
-
-    # Ensure today's data exists
-    if not os.path.exists(DATA_FILE):
-        subprocess.run(["python", "generate_data.py"])
-    else:
-        df_tmp = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
-        df_tmp["date"] = df_tmp["date_time"].dt.date
-        if today not in df_tmp["date"].unique():
-            subprocess.run(["python", "generate_data.py"])
-
-print("Using data file:", DATA_FILE)
-
-
-# 🔍 Debugging aid (optional: remove later)
-if DATA_FILE:
-    try:
-        df_check = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
-        df_check["date"] = df_check["date_time"].dt.date
-        st.sidebar.write("📅 Dates available:", sorted(df_check["date"].unique())[-5:])
-        st.sidebar.write("📅 Today is:", datetime.now().date())
-    except Exception as e:
-        st.sidebar.error(f"⚠️ Could not read dataset: {e}")
-
-
-# Ensure today's transactions exist
+# Ensure today's data exists
 def ensure_today_data():
     today = datetime.now().date()
 
@@ -85,6 +52,14 @@ def ensure_today_data():
 
 ensure_today_data()
 
+# 🔍 Debugging aid (optional: remove later)
+try:
+    df_check = pd.read_csv(DATA_FILE, parse_dates=["date_time"])
+    df_check["date"] = df_check["date_time"].dt.date
+    st.sidebar.write("📅 Dates available:", sorted(df_check["date"].unique())[-5:])
+    st.sidebar.write("📅 Today is:", datetime.now().date())
+except Exception as e:
+    st.sidebar.error(f"⚠️ Could not read dataset: {e}")
 
 # =========================
 # --- Streamlit Config ---
@@ -154,7 +129,6 @@ elif page == "📊 Daily Dashboard":
 
         # --- Sidebar filters ---
         st.sidebar.header("🔎 Filters")
-
         start_date = st.sidebar.date_input("Start Date", df["date"].min(), key="sid_start")
         end_date = st.sidebar.date_input("End Date", df["date"].max(), key="sid_end")
 
@@ -286,5 +260,6 @@ elif page == "🔮 Forecasts":
 
     except Exception as e:
         st.error(f"Forecasting error: {e}")
+
 
 
