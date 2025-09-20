@@ -9,3 +9,6 @@ __pycache__/
 grocer_ai_data.csv
 grocer_ai_db/
 __pycache__/
+# Ignore local vector databases
+grocer_ai_db_csv/
+grocer_ai_db_policies/

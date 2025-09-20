@@ -189,15 +189,69 @@ if HAS_GOOGLE_GENAI and llm is not None:
     agent = create_react_agent(llm, tools, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
+# =========================
 # ✅ Main function for Streamlit
+# =========================
+import re
+import calendar
+
 def run_query(question: str):
     """
     Handle queries:
     - Policies → grocer_ai_policies.txt
     - Transactions → grocer_ai_data.csv
-    - Direct sales questions (today, yesterday, last 7 days)
+    - Direct sales questions (today, yesterday, last 7 days, specific months, last year)
     """
     q_lower = question.lower()
+
+    # --- Direct sales calculations ---
+    if df is not None:
+        df["date_time"] = pd.to_datetime(df["date_time"])
+        df["date"] = df["date_time"].dt.date
+
+        # Today
+        if "sales today" in q_lower or "today's sales" in q_lower:
+            today = datetime.now().date()
+            sales_today = df[df["date"] == today]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales today = ${sales_today:,.2f}", []
+
+        # Yesterday
+        if "sales yesterday" in q_lower or "yesterday's sales" in q_lower:
+            yesterday = (datetime.now() - timedelta(days=1)).date()
+            sales_yest = df[df["date"] == yesterday]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales yesterday = ${sales_yest:,.2f}", []
+
+        # Last 7 days
+        if "last 7 days" in q_lower or "past week" in q_lower:
+            start = datetime.now().date() - timedelta(days=7)
+            sales_7d = df[df["date"] >= start]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales in last 7 days = ${sales_7d:,.2f}", []
+
+        # This year
+        if "this year" in q_lower:
+            this_year = datetime.now().year
+            sales_year = df[df["date"].apply(lambda d: d.year == this_year)]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales in {this_year} = ${sales_year:,.2f}", []
+
+        # Last year
+        if "last year" in q_lower:
+            last_year = datetime.now().year - 1
+            sales_year = df[df["date"].apply(lambda d: d.year == last_year)]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales in {last_year} = ${sales_year:,.2f}", []
+
+        # Specific month + year (e.g., "december 2024")
+        match = re.search(r"(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})", q_lower)
+        if match:
+            month_str, year = match.groups()
+            month = list(calendar.month_name).index(month_str.capitalize())
+            year = int(year)
+
+            start = datetime(year, month, 1).date()
+            end = datetime(year, month, calendar.monthrange(year, month)[1]).date()
+
+            sales_month = df[(df["date"] >= start) & (df["date"] <= end)]["total_amount"].sum()
+            return f"📝 **Answer:** Total sales in {month_str.capitalize()} {year} = ${sales_month:,.2f}", []
+
 
     # --- Direct sales calculations ---
     if df is not None:
