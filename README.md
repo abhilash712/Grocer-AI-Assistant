@@ -1,93 +1,151 @@
-# 🛒 Grocer-AI Data & Analytics Assistant  
+# 🛒 Grocer-AI Data & Analytics Assistant
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![Streamlit](https://img.shields.io/badge/Streamlit-App-red?logo=streamlit)
-![LangChain](https://img.shields.io/badge/LangChain-AI-orange?logo=ai)
-![Prophet](https://img.shields.io/badge/Forecasting-Prophet-green)
-
-This project simulates a **grocery retail environment** and builds an **AI-powered data analytics and policy assistant**.  
-It integrates **synthetic data generation**, **retrieval-augmented generation (RAG)**, **predictive forecasting**, and an **interactive web app** built with Streamlit.  
-
-👉 **Live App:** [Grocer-AI Assistant](https://grocer-ai-assistant-qzcyuuprgu9pplownbsnsm.streamlit.app)  
+[![Streamlit](https://img.shields.io/badge/Built%20With-Streamlit-orange?logo=streamlit)](https://streamlit.io/)
+[![LangChain](https://img.shields.io/badge/AI-LangChain-blue?logo=python)](https://langchain.com/)
+[![Prophet](https://img.shields.io/badge/Forecasting-Prophet-brightgreen)](https://facebook.github.io/prophet/)
+[![GitHub Actions](https://img.shields.io/github/workflow-status/abhilash712/Grocer-AI-Assistant/CI)](https://github.com/abhilash712/Grocer-AI-Assistant/actions)
 
 ---
 
-## 📂 Project Structure
-├── generate_data.py # Generates synthetic grocery data
+## 🌟 Overview
+
+**Grocer-AI Data & Analytics Assistant** is a full-stack, AI-powered assistant built for the retail and grocery industry.  
+It enables natural language Q&A, data analytics, sales forecasting, and automated daily reports—streamlining decision-making for managers and analysts.
+
+---
+
+## 🚀 Why Use This Project?
+
+- **End-to-end solution:** From synthetic data generation to interactive dashboards and email automation.
+- **Real business value:** Focused on retail/grocery analytics, policies, and employee management.
+- **Modern AI stack:** Utilizes Streamlit, LangChain (RAG), Prophet, ChromaDB, and GitHub Actions.
+- **Great for demos & interviews:** Showcases data science, ML, analytics engineering, and automation skills.
+
+---
+
+## 🏗️ Project Structure
+
+```
+├── app.py                 # Streamlit app (frontend UI)
+├── query_app.py           # Backend: AI agent, retrievers, tools
+├── generate_data.py       # Synthetic grocery dataset generator
 ├── grocer_ai_policies.txt # Company policies handbook
-├── rag_pipeline.py # RAG pipeline: ingestion, embeddings, ChromaDB
-├── data_analytics_tool.py # LangChain Python REPL analytics tool
-├── query_app.py # Agent + tools (backend logic)
-├── app.py # Streamlit app (frontend UI)
-├── requirements.txt # Python dependencies
-├── send_email.py # Automated daily email reports
-├── .github/workflows # GitHub Actions for automation
-├── .gitignore # Ignore local files (CSV, venv, etc.)
-└── README.md # Project documentation
+├── rag_pipeline.py        # RAG pipeline (embeddings + ChromaDB)
+├── data_analytics_tool.py # LangChain Python REPL analytics
+├── send_email.py          # Email automation (daily sales report)
+├── requirements.txt       # Python dependencies
+├── .github/workflows      # GitHub Actions CI/CD
+├── .gitignore             # Ignore local files/venv
+└── README.md              # Project documentation
+```
 
 ---
 
-## 🚀 Features
-- **Synthetic Dataset (50k+ transactions)**  
-  Branches, employees, products, sales, customer feedback.  
+## ✨ Features
 
-- **Company Policies Assistant**  
-  Employee performance, leave rules, refund policies, customer service guidelines.  
+### 🛒 Synthetic Dataset
+- 50k+ transactions with multiple branches, employees, and products
+- Includes customer feedback, referrals, hiring events
 
-- **RAG Pipeline (LangChain)**  
-  Combines structured CSV data + unstructured text policies.  
-  Embeddings with `sentence-transformers` stored in **ChromaDB**.  
+### 🧑‍💼 Company Policies Q&A (RAG)
+- Ask about refund, leave, performance policies
+- Powered by LangChain + ChromaDB (Retrieval Augmented Generation)
 
-- **Interactive AI Assistant**  
-  Natural language queries about sales, employees, or policies.  
-  Powered by LangChain ReAct + Python REPL.  
+### 🤖 AI Assistant
+- ReAct agent with:
+  - **GrocerAI_Transactions retriever**
+  - **GrocerAI_Policies retriever**
+  - **Python REPL analytics tool**
 
-- **📊 Analytics Dashboard**  
-  Sales KPIs, product trends, top categories, new hires.  
+### 📊 Interactive Dashboards
+- Sales KPIs, filters, top products & categories
+- New hires and performance tracking
 
-- **🔮 Predictive Analysis (Prophet)**  
-  Sales forecasting (overall, category-wise, branch-wise).  
+### 🔮 Sales Forecasting
+- 7-day forecasts (overall, by category, by branch) using Prophet
 
-- **📧 Automation**  
-  GitHub Actions workflow sends **daily sales summary via email**.  
+### 📧 Automation & Reporting
+- Daily synthetic data generation
+- Automated daily email reports (GitHub Actions)
 
 ---
 
-## ⚙️ Setup Instructions
-Clone the repository:
+## 🖥️ Demo
+
+<!--
+Add a link to your deployed app here if public, or a YouTube video demo!
+Example:  
+[Live Demo](https://share.streamlit.io/...)  
+[![Demo Video](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://youtu.be/VIDEO_ID)
+-->
+
+---
+
+## 🚦 Getting Started
+
+### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/abhilash712/Grocer-AI-Assistant.git
 cd Grocer-AI-Assistant
+```
 
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
+### 3. Generate Synthetic Data
+
+```bash
+python generate_data.py
+```
+
+### 4. Run the App
+
+```bash
 streamlit run app.py
+```
 
-🛠 Tech Stack
+---
 
-Python
+## 📁 Customization
 
-Streamlit – UI
+- **Policies:** Edit `grocer_ai_policies.txt` to update company rules.
+- **GitHub Actions:** Modify workflows in `.github/workflows` for automation customizations.
+- **Email Reports:** Configure recipients and SMTP in `send_email.py`.
 
-LangChain – RAG + LLM agent
+---
 
-ChromaDB – Vector storage
+## 🛠️ Technologies Used
 
-Prophet – Forecasting
+- **Streamlit:** Interactive UI
+- **LangChain + ChromaDB:** Retrieval-Augmented Generation
+- **Prophet:** Time series forecasting
+- **GitHub Actions:** CI/CD and automation
 
-GitHub Actions – Automation (daily reports)
+---
 
-🚀 Live Demo
+## 🤝 Contributing
 
-👉 Try it here: Grocer-AI Assistant (Streamlit)
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
-👨‍💻 Author
+---
 
-Abhilash V
-📍 Aspiring Data Scientist | Passionate about AI & Analytics
+## 📄 License
 
+MIT License. See [LICENSE](LICENSE) for more information.
 
-⭐ Contribute
+---
 
-If you like this project, please ⭐ star the repo and share it!
-Pull requests and suggestions are welcome.
+## 🙌 Acknowledgements
+
+- [Streamlit](https://streamlit.io/)
+- [LangChain](https://www.langchain.com/)
+- [Prophet](https://facebook.github.io/prophet/)
+- [ChromaDB](https://www.trychroma.com/)
+
+---
+
+> **Created by [Abhilash](https://github.com/abhilash712)**
