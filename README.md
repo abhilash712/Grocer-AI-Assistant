@@ -70,14 +70,10 @@ It enables natural language Q&A, data analytics, sales forecasting, and automate
 
 ---
 
+
 ## 🖥️ Demo
 
-<!--
-Add a link to your deployed app here if public, or a YouTube video demo!
-Example:  
-[Live Demo](https://share.streamlit.io/...)  
-[![Demo Video](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://youtu.be/VIDEO_ID)
--->
+[Watch Demo Video (Google Drive)](https://drive.google.com/file/d/165ZywUCgcoZD4babfqeTqsqn2DV64Mvq/view?usp=drive_link)
 
 ---
 
